@@ -611,6 +611,9 @@
         }
     </style>
 </head>
+    2
+    2
+    2
 <body>
 
     <audio id="radioAudio" preload="auto"></audio>
@@ -853,8 +856,11 @@
 
             <button id="closeInfoModalBtn" class="btn-action" style="width:100%; justify-content:center; margin-top:1rem;">Close</button>
         </div>
-    </div> 
-      <script>
+    </div>
+3
+3
+3
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
             try {
                 const RADIO_SERVERS = [
@@ -1165,7 +1171,7 @@
                     const hasSearchQuery = searchQuery.trim().length > 0;
 
                     const server = RADIO_SERVERS[currentServerIdx];
-                    let url = `${server}/json/stations/search?order=clickcount&reverse=true&hidebroken=true`;
+                    let url = `${server}/json/stations/search?order=clickcount&reverse=true&hidebroken=true&is_https=true`;
                     if (!hasSearchQuery && activeGenre === 'All' && activeCountry === 'All') {
                         url += '&limit=60';
                     } else {
@@ -1208,6 +1214,9 @@
                                 };
                             });
 
+                            // Отсекаем плейлисты и HLS: обычный тег audio их не играет
+                            mapped = mapped.filter(st => st.url && !/\.(m3u8|m3u|pls)(\?|$)/i.test(st.url));
+
                             fetchedStations = mapped;
                         } else {
                             fetchedStations = hasSearchQuery ? [] : filterCuratedByGenre();
@@ -1220,7 +1229,7 @@
                         renderStationsList();
                     }
                 }
-                              function filterCuratedByGenre() {
+                                function filterCuratedByGenre() {
                     let pool = CURATED_STATIONS;
                     if (activeGenre !== 'All') {
                         pool = pool.filter(s => stationMatchesGenre(s.tags, activeGenre));

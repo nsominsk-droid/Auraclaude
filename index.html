@@ -463,10 +463,16 @@
             flex-shrink: 0;
             position: relative;
         }
+        /* Картинка лежит поверх буквы и невидима, пока не загрузится:
+           так никогда не мелькает значок «битой» картинки */
         .station-avatar-img {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
         .station-avatar-fallback {
             width: 100%;
@@ -505,6 +511,8 @@
             width: 90%;
             position: relative;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+            max-height: 90dvh;
+            overflow-y: auto;
         }
         .modal-close {
             position: absolute;
@@ -573,6 +581,75 @@
             border-radius: 0.6rem;
         }
 
+        .btn-share {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .btn-share:hover {
+            background: var(--brand-primary);
+            color: #fff;
+        }
+
+        .info-cover {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 0.9rem;
+            position: relative;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+        }
+        .info-cover canvas,
+        .info-cover img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .info-cover img {
+            object-fit: contain;
+            background: #0b1020;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .info-cover img.loaded {
+            opacity: 1;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 1.2rem;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            font-size: 0.75rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: 0.6rem;
+            max-width: 90%;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 300;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
         .info-detail-row {
             display: flex;
             justify-content: space-between;
@@ -611,18 +688,11 @@
         }
     </style>
 </head>
-
-
-
-
-
-
-    
-    
-    
 <body>
 
     <audio id="radioAudio" preload="auto"></audio>
+
+    <div id="toast" class="toast"></div>
 
     <div class="ambient-bg">
         <div class="blob blob-1"></div>
@@ -635,7 +705,7 @@
             <div class="now-playing">
                 <div class="cover-frame">
                     <canvas id="coverCanvas" width="300" height="300" class="cover-canvas"></canvas>
-                    <img id="stationLogoImg" src="" alt="Station Cover" class="cover-img">
+                    <img id="stationLogoImg" alt="" class="cover-img">
                 </div>
                 <div class="station-meta">
                     <div class="station-title-row">
@@ -839,6 +909,10 @@
     <div id="infoModal" class="modal-backdrop">
         <div class="modal-box">
             <button id="closeInfoModal" class="modal-close">✕</button>
+            <div class="info-cover">
+                <canvas id="infoCoverCanvas" width="400" height="400"></canvas>
+                <img id="infoCoverImg" alt="">
+            </div>
             <h3 id="modalInfoTitle" style="font-size:0.95rem; font-weight:700; padding-right:1rem; word-break:break-word;">Station Info</h3>
             <p style="font-size:0.65rem; color:var(--text-muted); margin-top:0.1rem; margin-bottom:0.75rem;">Detailed station info</p>
 
@@ -860,15 +934,13 @@
                 <div id="infoModalTags" class="tags-cloud"></div>
             </div>
 
-            <button id="closeInfoModalBtn" class="btn-action" style="width:100%; justify-content:center; margin-top:1rem;">Close</button>
+            <button id="shareStationBtn" class="btn-action" style="width:100%; justify-content:center; margin-top:1rem; background:var(--brand-primary); color:#fff; font-weight:600;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+                Share station
+            </button>
+            <button id="closeInfoModalBtn" class="btn-action" style="width:100%; justify-content:center; margin-top:0.5rem;">Close</button>
         </div>
     </div>
-
-
-
-
-    
-
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -880,94 +952,11 @@
                 ];
                 let currentServerIdx = 0;
 
-                const CURATED_STATIONS = [
-                    {
-                        id: 'somafm-groovesalad',
-                        name: 'SomaFM Groove Salad',
-                        genre: 'LO-FI',
-                        tags: 'lo-fi, chillout, ambient, downtempo',
-                        country: 'United States',
-                        countrycode: 'US',
-                        url: 'https://ice1.somafm.com/groovesalad-128-mp3',
-                        favicon: 'https://somafm.com/img/groovesalad-120.png',
-                        bitrate: 128,
-                        codec: 'MP3',
-                        location: 'San Francisco, USA',
-                        description: 'Chilled lo-fi downtempo grooves.'
-                    },
-                    {
-                        id: 'nightwave-plaza',
-                        name: 'Nightwave Plaza',
-                        genre: 'SYNTHWAVE',
-                        tags: 'synthwave, vaporwave, electronic',
-                        country: 'Worldwide',
-                        countrycode: 'WW',
-                        url: 'https://stream.plaza.one/mp3',
-                        favicon: 'https://plaza.one/img/logo.png',
-                        bitrate: 128,
-                        codec: 'MP3',
-                        location: 'Worldwide',
-                        description: '24/7 Vaporwave & Synthwave radio.'
-                    },
-                    {
-                        id: 'radio-swiss-jazz',
-                        name: 'Radio Swiss Jazz',
-                        genre: 'JAZZ',
-                        tags: 'jazz, swing, blues',
-                        country: 'Switzerland',
-                        countrycode: 'CH',
-                        url: 'https://stream.srg-ssr.ch/m/rsj/mp3_128',
-                        favicon: '',
-                        bitrate: 128,
-                        codec: 'MP3',
-                        location: 'Basel, Switzerland',
-                        description: 'Smooth jazz, swing and soulful blues.'
-                    },
-                    {
-                        id: 'somafm-deepspace',
-                        name: 'SomaFM Deep Space One',
-                        genre: 'AMBIENT',
-                        tags: 'ambient, space, chillout',
-                        country: 'United States',
-                        countrycode: 'US',
-                        url: 'https://ice1.somafm.com/deepspaceone-128-mp3',
-                        favicon: 'https://somafm.com/img/deepspaceone-120.png',
-                        bitrate: 128,
-                        codec: 'MP3',
-                        location: 'San Francisco, USA',
-                        description: 'Deep space ambient music.'
-                    },
-                    {
-                        id: 'defcon-radio',
-                        name: 'DEF CON Radio',
-                        genre: 'ELECTRONIC',
-                        tags: 'electronic, techno, ambient, chillout',
-                        country: 'United States',
-                        countrycode: 'US',
-                        url: 'https://ice1.somafm.com/defcon-128-mp3',
-                        favicon: 'https://somafm.com/img/defcon120.png',
-                        bitrate: 128,
-                        codec: 'MP3',
-                        location: 'Las Vegas, USA',
-                        description: 'Music for coding and focus.'
-                    },
-                    {
-                        id: 'somafm-indiepop',
-                        name: 'SomaFM Indie Pop',
-                        genre: 'ROCK',
-                        tags: 'rock, indie, pop',
-                        country: 'United States',
-                        countrycode: 'US',
-                        url: 'https://ice1.somafm.com/indiepop-128-mp3',
-                        favicon: '',
-                        bitrate: 128,
-                        codec: 'MP3',
-                        location: 'San Francisco, USA',
-                        description: 'Classic and modern indie rock.'
-                    }
-                ];
 
                 let fetchedStations = [];
+                let loadFailed = false;
+                let isLoadingList = false;
+                let fetchSeq = 0;
                 let activeStation = null;
                 let isPlaying = false;
                 let activeCountry = 'All';
@@ -978,6 +967,9 @@
                 let activeTab = 'all';
                 let sleepTimerId = null;
                 let sleepTargetEndTime = 0;
+
+                // Адреса логотипов, которые не загрузились: повторно их не запрашиваем
+                const badLogos = new Set();
 
                 const audioEl = document.getElementById('radioAudio');
 
@@ -996,40 +988,92 @@
                     } catch(e) {}
                 }
 
-                // Лампочка статуса: green = играет, yellow = загрузка, red = ошибка
-                const statusLamp = document.getElementById('statusLamp');
-                function updateStatus(color) {
-                    statusLamp.className = 'status-lamp' + (color ? ' ' + color : '');
+                function updateFavCount() {
+                    document.getElementById('favTabCount').innerText = favoritesMap.size;
                 }
 
-                audioEl.addEventListener('loadstart', () => {
-                    if (isPlaying) updateStatus('yellow');
-                });
+                // ===== Состояние потока и лампочка =====
+                // idle (серая) | loading (жёлтая) | playing (зелёная) | error (красная)
+                const statusLamp = document.getElementById('statusLamp');
+                const LAMP_CLASS = { loading: 'yellow', playing: 'green', error: 'red' };
+                const LOAD_TIMEOUT_MS = 15000;
+                let streamState = 'idle';
+                let playToken = 0;
+                let loadTimer = null;
+
+                function setStatus(state) {
+                    streamState = state;
+                    statusLamp.className = 'status-lamp' + (LAMP_CLASS[state] ? ' ' + LAMP_CLASS[state] : '');
+                }
+
+                // Если поток не начал играть за 15 секунд, считаем его нерабочим
+                function startLoadWatch() {
+                    clearTimeout(loadTimer);
+                    loadTimer = setTimeout(() => {
+                        if (streamState === 'loading') failStream();
+                    }, LOAD_TIMEOUT_MS);
+                }
+
+                function failStream() {
+                    clearTimeout(loadTimer);
+                    isPlaying = false;
+                    setStatus('error');
+                    updatePlayStateUI();
+                }
+
                 audioEl.addEventListener('waiting', () => {
-                    if (isPlaying) updateStatus('yellow');
-                });
-                audioEl.addEventListener('playing', () => {
-                    updateStatus('green');
-                });
-                audioEl.addEventListener('pause', () => {
-                    if (!isPlaying) updateStatus('');
-                });
-                audioEl.addEventListener('stalled', () => {
-                    if (isPlaying) updateStatus('yellow');
-                });
-                audioEl.addEventListener('error', () => {
-                    if (activeStation) {
-                        isPlaying = false;
-                        updatePlayStateUI();
-                        updateStatus('red');
+                    if (isPlaying && streamState !== 'error') {
+                        setStatus('loading');
+                        startLoadWatch();
                     }
                 });
+                audioEl.addEventListener('playing', () => {
+                    clearTimeout(loadTimer);
+                    isPlaying = true;
+                    setStatus('playing');
+                    updatePlayStateUI();
+                });
+                audioEl.addEventListener('pause', () => {
+                    // После ошибки браузер может прислать pause: красный цвет не трогаем
+                    if (streamState === 'error') return;
+                    if (!isPlaying) setStatus('idle');
+                });
+                audioEl.addEventListener('error', () => {
+                    if (!activeStation) return;
+                    failStream();
+                });
+
+                function handlePlayError(token) {
+                    return (err) => {
+                        if (token !== playToken) return; // запрос уже устарел
+                        if (err && err.name === 'AbortError') return; // его перебил новый запрос
+                        if (err && err.name === 'NotAllowedError') {
+                            // браузер не разрешил автозапуск: это не ошибка станции
+                            clearTimeout(loadTimer);
+                            isPlaying = false;
+                            setStatus('idle');
+                            updatePlayStateUI();
+                            return;
+                        }
+                        failStream();
+                    };
+                }
+
+                function startPlayback() {
+                    const token = ++playToken;
+                    isPlaying = true;
+                    setStatus('loading');
+                    startLoadWatch();
+                    audioEl.src = activeStation.url;
+                    updatePlayStateUI();
+                    audioEl.play().catch(handlePlayError(token));
+                }
 
                 function togglePlay() {
                     if (!activeStation) {
                         const pool = activeTab === 'fav'
                             ? Array.from(favoritesMap.values())
-                            : (fetchedStations.length > 0 ? fetchedStations : filterCuratedByGenre());
+                            : fetchedStations;
                         if (pool.length > 0) {
                             selectStation(pool[0]);
                         }
@@ -1039,53 +1083,45 @@
                     if (isPlaying) {
                         audioEl.pause();
                         isPlaying = false;
-                        updateStatus('');
+                        clearTimeout(loadTimer);
+                        setStatus('idle');
                         updatePlayStateUI();
                     } else {
-                        if (audioEl.getAttribute('src') !== activeStation.url) {
-                            audioEl.src = activeStation.url;
-                        }
-                        isPlaying = true;
-                        updateStatus('yellow');
-                        updatePlayStateUI();
-                        audioEl.play().catch(() => {
-                            isPlaying = false;
-                            updateStatus('red');
-                            updatePlayStateUI();
-                        });
+                        startPlayback();
                     }
                 }
 
                 function updatePlayStateUI() {
                     const icon = document.getElementById('masterPlayIcon');
                     icon.innerHTML = isPlaying ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
-                    renderStationsList();
+                    markActiveStation();
+                }
+
+                // Подсвечивает активную станцию, не перерисовывая весь список
+                function markActiveStation() {
+                    document.querySelectorAll('#stationsList .station-item').forEach(el => {
+                        el.classList.toggle('active-station', !!activeStation && el.dataset.id === activeStation.id);
+                    });
                 }
 
                 function selectStation(st) {
                     activeStation = st;
-                    audioEl.src = activeStation.url;
-                    isPlaying = true;
-                    updateStatus('yellow');
                     updatePlayerUI();
-                    updatePlayStateUI();
-
-                    audioEl.play().catch(() => {
-                        isPlaying = false;
-                        updateStatus('red');
-                        updatePlayStateUI();
-                    });
+                    startPlayback();
                 }
 
                 function updatePlayerUI() {
                     const heartBtn = document.getElementById('heartBookmarkBtn');
                     const infoBtn = document.getElementById('stationInfoBtn');
+                    const imgEl = document.getElementById('stationLogoImg');
 
                     if (!activeStation) {
                         document.getElementById('activeStationTitle').innerText = 'AURA RADIO';
                         document.getElementById('activeStationDesc').innerText = 'Select a station from list';
                         heartBtn.className = 'btn-heart-bookmark not-favorite disabled';
                         infoBtn.className = 'btn-info-icon disabled';
+                        imgEl.classList.remove('loaded');
+                        imgEl.removeAttribute('src');
                         renderCanvasLogo();
                     } else {
                         document.getElementById('activeStationTitle').innerText = activeStation.name;
@@ -1099,28 +1135,78 @@
                             heartBtn.className = 'btn-heart-bookmark not-favorite';
                         }
 
-                        const imgEl = document.getElementById('stationLogoImg');
-                        imgEl.classList.remove('loaded');
                         renderCanvasLogo();
-                        if (activeStation.favicon && activeStation.favicon.startsWith('http')) {
-                            imgEl.src = activeStation.favicon;
+                        const fav = activeStation.favicon;
+                        if (fav && fav.startsWith('http') && !badLogos.has(fav)) {
+                            if (imgEl.getAttribute('src') !== fav) {
+                                imgEl.classList.remove('loaded');
+                                imgEl.src = fav;
+                            }
                         } else {
+                            imgEl.classList.remove('loaded');
                             imgEl.removeAttribute('src');
                         }
                     }
 
-                    renderStationsList();
+                    markActiveStation();
                 }
 
                 const logoImgEl = document.getElementById('stationLogoImg');
                 logoImgEl.onload = () => logoImgEl.classList.add('loaded');
                 logoImgEl.onerror = () => {
+                    const u = logoImgEl.getAttribute('src');
+                    if (u) badLogos.add(u);
                     logoImgEl.classList.remove('loaded');
-                    renderCanvasLogo();
                 };
+
+                function nameHash(str) {
+                    let h = 0;
+                    const t = String(str || '');
+                    for (let i = 0; i < t.length; i++) {
+                        h = (h * 31 + t.charCodeAt(i)) | 0;
+                    }
+                    return Math.abs(h);
+                }
+
+                function tileInitials(name) {
+                    const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+                    if (words.length >= 2) return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+                    return (words[0] || 'R').slice(0, 2).toUpperCase();
+                }
+
+                function tileGradientCss(name) {
+                    const hue = nameHash(name) % 360;
+                    return `linear-gradient(135deg, hsl(${hue}, 60%, 32%), hsl(${(hue + 45) % 360}, 65%, 48%))`;
+                }
+
+                // Цветная плитка с двумя буквами: цвет зависит от названия, у станции он всегда один и тот же
+                function drawStationTile(canvas, st) {
+                    const ctx = canvas.getContext('2d');
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    const name = st ? st.name : 'AURA';
+                    const hue = nameHash(name) % 360;
+
+                    const grad = ctx.createLinearGradient(0, 0, w, h);
+                    grad.addColorStop(0, `hsl(${hue}, 60%, 32%)`);
+                    grad.addColorStop(1, `hsl(${(hue + 45) % 360}, 65%, 48%)`);
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.round(w * 0.36)}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(tileInitials(name), w / 2, h / 2);
+                }
 
                 function renderCanvasLogo() {
                     const canvas = document.getElementById('coverCanvas');
+                    if (activeStation) {
+                        drawStationTile(canvas, activeStation);
+                        return;
+                    }
+
                     const ctx = canvas.getContext('2d');
                     const w = canvas.width = 300;
                     const h = canvas.height = 300;
@@ -1147,8 +1233,7 @@
 
                     ctx.fillStyle = 'rgba(255,255,255,0.7)';
                     ctx.font = '600 22px monospace';
-                    const genreText = activeStation ? (activeStation.genre || 'RADIO').toUpperCase() : 'GLOBAL RADIO';
-                    ctx.fillText(genreText.slice(0, 14), w/2, h/2 + 35);
+                    ctx.fillText('GLOBAL RADIO', w/2, h/2 + 35);
                 }
 
                 const GENRE_MAPPINGS = {
@@ -1166,98 +1251,104 @@
                     country: ['country', 'americana', 'bluegrass', 'folk rock', 'traditional']
                 };
 
-                function stationMatchesGenre(stationTags, genreKey) {
-                    if (genreKey === 'All') return true;
-                    const tags = stationTags ? stationTags.toLowerCase() : '';
-                    const allowedTags = GENRE_MAPPINGS[genreKey] || [];
-                    return allowedTags.some(t => tags.includes(t));
+                // Перебирает серверы базы по очереди, пока один не ответит
+                async function apiGet(path) {
+                    for (let i = 0; i < RADIO_SERVERS.length; i++) {
+                        const idx = (currentServerIdx + i) % RADIO_SERVERS.length;
+                        try {
+                            const res = await fetch(RADIO_SERVERS[idx] + path, { signal: AbortSignal.timeout(5000) });
+                            if (!res.ok) continue;
+                            const data = await res.json();
+                            currentServerIdx = idx;
+                            return data;
+                        } catch (e) { /* пробуем следующий сервер */ }
+                    }
+                    throw new Error('Offline');
+                }
+
+                function mapApiStation(st) {
+                    const allTagsStr = st.tags ? st.tags.toLowerCase() : '';
+                    const tagList = allTagsStr.split(',').map(t => t.trim()).filter(Boolean);
+                    const displayTag = tagList.length > 0 ? tagList[0].toUpperCase() : 'RADIO';
+
+                    return {
+                        id: st.stationuuid || String(Math.random()),
+                        name: st.name ? st.name.trim() : 'Unknown Station',
+                        genre: displayTag,
+                        tags: allTagsStr,
+                        country: st.country || 'Global',
+                        countrycode: st.countrycode || 'WW',
+                        url: st.url_resolved || st.url,
+                        favicon: st.favicon && st.favicon.startsWith('http') ? st.favicon.trim() : '',
+                        bitrate: st.bitrate || 128,
+                        codec: st.codec || 'MP3',
+                        location: st.country || 'Worldwide',
+                        description: st.tags ? st.tags.split(',').slice(0, 3).map(t => `#${t.trim()}`).join(' • ') : 'Live stream'
+                    };
                 }
 
                 async function fetchGlobalStations() {
+                    const seq = ++fetchSeq;
+                    isLoadingList = true;
                     const spin = document.getElementById('loaderSpin');
                     if (spin) spin.style.display = 'inline';
+                    if (fetchedStations.length === 0) renderStationsList();
 
-                    // Исправлено: hasSearchQuery объявлен ДО использования
                     const hasSearchQuery = searchQuery.trim().length > 0;
 
-                    const server = RADIO_SERVERS[currentServerIdx];
-                    let url = `${server}/json/stations/search?order=clickcount&reverse=true&hidebroken=true&is_https=true`;
+                    let path = `/json/stations/search?order=clickcount&reverse=true&hidebroken=true&is_https=true`;
                     if (!hasSearchQuery && activeGenre === 'All' && activeCountry === 'All') {
-                        url += '&limit=60';
+                        path += '&limit=60';
                     } else {
-                        url += '&limit=200';
+                        path += '&limit=200';
                     }
 
-                    if (hasSearchQuery) url += `&name=${encodeURIComponent(searchQuery.trim())}`;
+                    if (hasSearchQuery) path += `&name=${encodeURIComponent(searchQuery.trim())}`;
                     if (activeGenre !== 'All') {
                         const tagsArr = GENRE_MAPPINGS[activeGenre] || [];
                         if (tagsArr.length > 0) {
-                            url += `&tag=${encodeURIComponent(tagsArr[0])}`;
+                            path += `&tag=${encodeURIComponent(tagsArr[0])}`;
                         }
                     }
-                    if (activeCountry !== 'All') url += `&countrycode=${encodeURIComponent(activeCountry)}`;
+                    if (activeCountry !== 'All') path += `&countrycode=${encodeURIComponent(activeCountry)}`;
 
+                    let result = [];
+                    let failed = false;
                     try {
-                        const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-                        if (!res.ok) throw new Error('Offline');
-                        const data = await res.json();
-
-                        if (Array.isArray(data) && data.length > 0) {
-                            let mapped = data.map(st => {
-                                const allTagsStr = st.tags ? st.tags.toLowerCase() : '';
-                                const tagList = allTagsStr.split(',').map(t => t.trim()).filter(Boolean);
-                                let displayTag = tagList.length > 0 ? tagList[0].toUpperCase() : 'RADIO';
-
-                                return {
-                                    id: st.stationuuid || String(Math.random()),
-                                    name: st.name ? st.name.trim() : 'Unknown Station',
-                                    genre: displayTag,
-                                    tags: allTagsStr,
-                                    country: st.country || 'Global',
-                                    countrycode: st.countrycode || 'WW',
-                                    url: st.url_resolved || st.url,
-                                    favicon: st.favicon && st.favicon.startsWith('http') ? st.favicon.trim() : '',
-                                    bitrate: st.bitrate || 128,
-                                    codec: st.codec || 'MP3',
-                                    location: st.country || 'Worldwide',
-                                    description: st.tags ? st.tags.split(',').slice(0, 3).map(t => `#${t.trim()}`).join(' • ') : 'Live stream'
-                                };
-                            });
-
-                            // Отсекаем плейлисты и HLS: обычный тег audio их не играет
-                            mapped = mapped.filter(st => st.url && !/\.(m3u8|m3u|pls)(\?|$)/i.test(st.url));
-
-                            fetchedStations = mapped;
-                        } else {
-                            fetchedStations = hasSearchQuery ? [] : filterCuratedByGenre();
-                        }
-                    } catch(err) {
-                        currentServerIdx = (currentServerIdx + 1) % RADIO_SERVERS.length;
-                        fetchedStations = hasSearchQuery ? [] : filterCuratedByGenre();
-                    } finally {
-                        if (spin) spin.style.display = 'none';
-                        renderStationsList();
+                        const data = await apiGet(path);
+                        if (!Array.isArray(data)) throw new Error('Bad response');
+                        // Отсекаем плейлисты и HLS: обычный тег audio их не играет
+                        result = data.map(mapApiStation).filter(st => st.url && !/\.(m3u8|m3u|pls)(\?|$)/i.test(st.url));
+                    } catch (err) {
+                        failed = true;
                     }
-                }
-                                function filterCuratedByGenre() {
-                    let pool = CURATED_STATIONS;
-                    if (activeGenre !== 'All') {
-                        pool = pool.filter(s => stationMatchesGenre(s.tags, activeGenre));
-                    }
-                    if (searchQuery.trim().length > 0) {
-                        const q = searchQuery.trim().toLowerCase();
-                        pool = pool.filter(s => s.name.toLowerCase().includes(q) || s.tags.toLowerCase().includes(q));
-                    }
-                    return pool;
+
+                    // Если пока шёл запрос, начался более новый, этот ответ уже не нужен
+                    if (seq !== fetchSeq) return;
+
+                    isLoadingList = false;
+                    loadFailed = failed;
+                    fetchedStations = result;
+                    if (spin) spin.style.display = 'none';
+                    renderStationsList();
                 }
 
                 function escapeHtml(str) {
                     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
                 }
 
+                // Вызывается из onerror у картинки в списке
+                window.markLogoBad = (img) => {
+                    const u = img.getAttribute('src');
+                    if (u) badLogos.add(u);
+                    img.remove();
+                };
+
+                // Список перерисовывается только когда он реально меняется
+                // (загрузка, поиск, фильтры, вкладки), а не при каждом событии плеера
                 function renderStationsList() {
                     const listEl = document.getElementById('stationsList');
-                    document.getElementById('favTabCount').innerText = favoritesMap.size;
+                    updateFavCount();
 
                     if (activeTab === 'fav') {
                         document.getElementById('filterGroup').style.display = 'none';
@@ -1277,38 +1368,118 @@
                         const pool = fetchedStations;
                         document.getElementById('listTitleLabel').innerHTML = `TOP ONLINE STATIONS (<span id="stationCount">${pool.length}</span>)`;
                         if (pool.length === 0) {
-                            listEl.innerHTML = `<div style="text-align:center; padding:1.5rem; font-size:0.75rem; color:var(--text-dim);">No stations found.</div>`;
+                            const box = 'text-align:center; padding:1.5rem; font-size:0.75rem; color:var(--text-dim);';
+                            if (isLoadingList) {
+                                listEl.innerHTML = `<div style="${box}">Loading stations…</div>`;
+                            } else if (loadFailed) {
+                                listEl.innerHTML = `<div style="${box}"><div style="margin-bottom:0.7rem;">Couldn't load stations. Check your connection.</div><button class="btn-action" style="margin:0 auto; justify-content:center;" onclick="window.retryFetch()">Retry</button></div>`;
+                            } else {
+                                listEl.innerHTML = `<div style="${box}">No stations found.</div>`;
+                            }
                             return;
                         }
                         listEl.innerHTML = pool.map(s => renderStationItemHTML(s)).join('');
                     }
                 }
 
+                const SHARE_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>';
+
                 function renderStationItemHTML(s) {
                     const isActive = activeStation && s.id === activeStation.id;
-                    const hasFavicon = s.favicon && s.favicon.startsWith('http');
-                    const initial = s.name ? escapeHtml(s.name.charAt(0).toUpperCase()) : 'R';
+                    const hasFavicon = s.favicon && s.favicon.startsWith('http') && !badLogos.has(s.favicon);
+                    const initials = escapeHtml(tileInitials(s.name));
 
+                    // Цветная плитка с буквами есть всегда. Картинка лежит поверх неё, невидима до загрузки,
+                    // а при успешной загрузке прячет плитку. Битая картинка просто удаляется.
                     return `
-                        <div class="glass-card station-item ${isActive ? 'active-station' : ''}" onclick="window.selectStationById('${escapeHtml(s.id)}')">
-                            <div style="display:flex; align-items:center; gap:0.5rem; overflow:hidden;">
+                        <div class="glass-card station-item ${isActive ? 'active-station' : ''}" data-id="${escapeHtml(s.id)}" onclick="window.selectStationById(this.dataset.id)">
+                            <div style="display:flex; align-items:center; gap:0.5rem; overflow:hidden; min-width:0;">
                                 <div class="station-avatar-wrapper">
-                                    ${hasFavicon ? `<img src="${escapeHtml(s.favicon)}" class="station-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="Logo">` : ''}
-                                    <div class="station-avatar-fallback" style="${hasFavicon ? 'display:none;' : 'display:flex;'}">${initial}</div>
+                                    <div class="station-avatar-fallback" style="background:${tileGradientCss(s.name)};">${initials}</div>
+                                    ${hasFavicon ? `<img src="${escapeHtml(s.favicon)}" class="station-avatar-img" alt="" loading="lazy" onload="this.style.opacity=1; this.previousElementSibling.style.visibility='hidden';" onerror="window.markLogoBad(this)">` : ''}
                                 </div>
                                 <div style="min-width:0;">
                                     <div style="font-size:0.72rem; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(s.name)}</div>
                                     <div style="font-size:0.6rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(s.location)}</div>
                                 </div>
                             </div>
+                            <button class="btn-share" title="Share" aria-label="Share" onclick="event.stopPropagation(); window.shareStationById(this.closest('.station-item').dataset.id)">${SHARE_ICON}</button>
                         </div>
                     `;
                 }
 
+                function findStationById(id) {
+                    return fetchedStations.find(s => s.id === id)
+                        || favoritesMap.get(id)
+                        || (activeStation && activeStation.id === id ? activeStation : null);
+                }
+
                 window.selectStationById = (id) => {
-                    const found = fetchedStations.find(s => s.id === id) || CURATED_STATIONS.find(s => s.id === id) || favoritesMap.get(id);
+                    const found = findStationById(id);
                     if (found) selectStation(found);
                 };
+                window.shareStationById = (id) => {
+                    const found = findStationById(id);
+                    if (found) shareStation(found);
+                };
+                window.retryFetch = () => fetchGlobalStations();
+
+                let toastTimer = null;
+                function showToast(msg) {
+                    const el = document.getElementById('toast');
+                    el.textContent = msg;
+                    el.classList.add('show');
+                    clearTimeout(toastTimer);
+                    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+                }
+
+                function buildShareUrl(st) {
+                    const base = location.href.split('#')[0].split('?')[0];
+                    return `${base}?station=${encodeURIComponent(st.id)}`;
+                }
+
+                async function shareStation(st) {
+                    const url = buildShareUrl(st);
+                    const text = `I recommend you to listen to the radio station ${st.name}`;
+
+                    // Системное меню «Поделиться» (телефоны и многие браузеры)
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({ title: st.name, text, url });
+                            return;
+                        } catch (e) {
+                            if (e && e.name === 'AbortError') return; // человек закрыл меню
+                        }
+                    }
+
+                    // Если меню нет, копируем текст со ссылкой
+                    const full = `${text}\n${url}`;
+                    try {
+                        await navigator.clipboard.writeText(full);
+                        showToast('Link copied to clipboard');
+                    } catch (e) {
+                        window.prompt('Copy this message:', full);
+                    }
+                }
+
+                // Если приложение открыли по ссылке ?station=..., находим станцию и ставим её в шапку.
+                // Автозапуск браузеры запрещают, поэтому играть она начнёт после нажатия на Play.
+                async function openSharedStation() {
+                    const id = new URLSearchParams(location.search).get('station');
+                    if (!id) return;
+                    try {
+                        const data = await apiGet(`/json/stations/byuuid/${encodeURIComponent(id)}`);
+                        if (Array.isArray(data) && data.length > 0) {
+                            activeStation = mapApiStation(data[0]);
+                            updatePlayerUI();
+                            showToast(`Press Play to listen: ${activeStation.name}`);
+                        } else {
+                            showToast('Shared station was not found');
+                        }
+                    } catch (e) {
+                        showToast('Could not load the shared station');
+                    }
+                }
 
                 document.getElementById('tabAllBtn').addEventListener('click', () => {
                     activeTab = 'all';
@@ -1334,6 +1505,9 @@
                     }
                     saveFavoritesToStorage();
                     updatePlayerUI();
+                    updateFavCount();
+                    // На вкладке избранного станция должна сразу исчезнуть из списка
+                    if (activeTab === 'fav') renderStationsList();
                 });
 
                 document.getElementById('countrySelect').addEventListener('change', (e) => {
@@ -1513,6 +1687,17 @@
 
                 document.getElementById('stationInfoBtn').addEventListener('click', () => {
                     if (!activeStation) return;
+
+                    // Крупный логотип: сначала цветная плитка, поверх неё картинка, если она загрузится
+                    drawStationTile(document.getElementById('infoCoverCanvas'), activeStation);
+                    const infoLogo = document.getElementById('infoCoverImg');
+                    infoLogo.classList.remove('loaded');
+                    infoLogo.removeAttribute('src');
+                    const infoFav = activeStation.favicon;
+                    if (infoFav && infoFav.startsWith('http') && !badLogos.has(infoFav)) {
+                        infoLogo.src = infoFav;
+                    }
+
                     document.getElementById('modalInfoTitle').innerText = activeStation.name;
                     document.getElementById('infoModalLocation').innerText = activeStation.location || 'Worldwide';
                     document.getElementById('infoModalAudio').innerText = `${activeStation.codec || 'MP3'} / ${activeStation.bitrate || 128} kbps`;
@@ -1529,6 +1714,17 @@
                     toggleModal('infoModal');
                 });
 
+                const infoCoverImg = document.getElementById('infoCoverImg');
+                infoCoverImg.onload = () => infoCoverImg.classList.add('loaded');
+                infoCoverImg.onerror = () => {
+                    const u = infoCoverImg.getAttribute('src');
+                    if (u) badLogos.add(u);
+                    infoCoverImg.classList.remove('loaded');
+                };
+                document.getElementById('shareStationBtn').addEventListener('click', () => {
+                    if (activeStation) shareStation(activeStation);
+                });
+
                 document.getElementById('closeInfoModal').addEventListener('click', () => toggleModal('infoModal'));
                 document.getElementById('closeInfoModalBtn').addEventListener('click', () => toggleModal('infoModal'));
 
@@ -1539,6 +1735,8 @@
                 fetchGlobalStations();
                 updatePlayerUI();
                 updatePlayStateUI();
+                updateFavCount();
+                openSharedStation();
 
             } catch (err) {
                 console.error('Runtime error:', err);
